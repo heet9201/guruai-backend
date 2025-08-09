@@ -1,23 +1,30 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.services.ai_service import AIService
 from app.utils.middleware import require_json, validate_required_fields
+from app.utils.auth_middleware import token_required
 from app.services.vertex_ai_service import QuotaExceededError, VertexAIError
+from app.services.dashboard_service import DashboardService, ActivityType
 import logging
 import base64
+import time
 
 logger = logging.getLogger(__name__)
 ai_bp = Blueprint('ai', __name__)
 ai_service = AIService()
+dashboard_service = DashboardService()
 
 @ai_bp.route('/chat', methods=['POST'])
+@token_required
 @require_json
 @validate_required_fields(['message'])
 def chat():
     """Handle chat requests with AI using Vertex AI Gemini Pro."""
+    start_time = time.time()
+    
     try:
         data = request.get_json()
         message = data['message']
-        user_id = data.get('user_id')
+        user_id = g.current_user.get('id')
         context = data.get('context', {})
         
         # Additional parameters for Gemini Pro
@@ -32,6 +39,23 @@ def chat():
             context=context,
             max_tokens=max_tokens,
             temperature=temperature
+        )
+        
+        # Calculate duration and track activity
+        duration_seconds = int(time.time() - start_time)
+        dashboard_service.track_activity(
+            user_id=user_id,
+            activity_type=ActivityType.CHAT,
+            title="AI Chat Session",
+            description=f"Chat about: {message[:100]}...",
+            metadata={
+                'feature': 'ai_chat',
+                'message_length': len(message),
+                'response_length': len(response) if response else 0,
+                'temperature': temperature,
+                'max_tokens': max_tokens
+            },
+            duration_seconds=duration_seconds
         )
         
         return jsonify({
@@ -56,9 +80,14 @@ def chat():
         }), 500
 
 @ai_bp.route('/analyze-image', methods=['POST'])
+@token_required
 def analyze_image():
     """Analyze an image using Vertex AI Gemini Pro Vision."""
+    start_time = time.time()
+    
     try:
+        user_id = g.current_user.get('id')
+        
         # Handle both JSON and multipart/form-data
         if request.content_type.startswith('application/json'):
             data = request.get_json()
@@ -110,6 +139,23 @@ def analyze_image():
             image_url=image_url,
             image_data=image_bytes,
             prompt=prompt
+        )
+        
+        # Calculate duration and track activity
+        duration_seconds = int(time.time() - start_time)
+        dashboard_service.track_activity(
+            user_id=user_id,
+            activity_type=ActivityType.ANALYSIS,
+            title="Image Analysis",
+            description=f"Analyzed image with prompt: {prompt[:100]}...",
+            metadata={
+                'feature': 'image_analysis',
+                'prompt_length': len(prompt),
+                'has_image_url': bool(image_url),
+                'has_image_data': bool(image_bytes),
+                'response_length': len(response) if response else 0
+            },
+            duration_seconds=duration_seconds
         )
         
         return jsonify({

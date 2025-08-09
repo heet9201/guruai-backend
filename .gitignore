@@ -229,3 +229,9 @@ test_auth_system.py
 docs/AUTHENTICATION_API.md
 docs/AUTHENTICATION_IMPLEMENTATION.md
 docs/POSTMAN_COLLECTION_GUIDE.md
+test_dashboard_system.py
+docs/DASHBOARD_API.md
+docs/WEEKLY_PLANNING.md
+docs/CONTENT_GENERATION.md
+WEBSOCKET_IMPLEMENTATION.md
+test_websocket.py

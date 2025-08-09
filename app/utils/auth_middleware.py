@@ -6,6 +6,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def get_current_user():
+    """Get the current user from Flask's g object."""
+    return g.current_user if hasattr(g, 'current_user') else None
+
 def token_required(f):
     """Decorator that requires a valid JWT token."""
     @wraps(f)
@@ -71,3 +75,6 @@ def teacher_required(f):
         return f(*args, **kwargs)
     
     return decorated_function
+
+# Alias for backward compatibility  
+require_firebase_auth = token_required

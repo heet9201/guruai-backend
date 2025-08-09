@@ -1,6 +1,18 @@
 # Sahayak Backend 🚀
 
-A powerful Flask backend for the Sahayak AI assistant application, providing speech-to-text, text-to-speech, AI chat, and authentication services.
+A powerful Flask- **🤖 AI Chat**: Vertex AI integration with Gemini Pro for intelligent conversations
+
+- **👁️ Vision Analysis**: Gemini Pro Vision for image understanding and analysis
+- **🎤 Speech-to-Text**: Enhanced Google Cloud Speech API with quota management
+- **🔊 Text-to-Speech**: Multi-language audio synthesis with Neural2 voices
+- **📅 Weekly Planning**: Comprehensive lesson planning system with AI-powered activity suggestions
+- **📚 Content Generation**: Universal AI-powered educational content creation system
+  - Stories with moral lessons and interactive elements
+  - Worksheets with progressive difficulty and solutions
+  - Quizzes with multiple question types and explanations
+  - Lesson plans with activities and assessments
+  - Visual aids with SVG diagrams and color palettes
+- **🔐 Authentication**: JWT-based authentication with Redis session managementnd for the Sahayak AI assistant application, providing speech-to-text, text-to-speech, AI chat, and authentication services.
 
 ## 🏗️ Architecture
 
@@ -40,7 +52,8 @@ guruai-backend/
 - **👁️ Vision Analysis**: Gemini Pro Vision for image understanding and analysis
 - **🎤 Speech-to-Text**: Enhanced Google Cloud Speech API with quota management
 - **🔊 Text-to-Speech**: Multi-language audio synthesis with Neural2 voices
-- **🔐 Authentication**: JWT-based authentication with Redis session management
+- **� Weekly Planning**: Comprehensive lesson planning system with AI-powered activity suggestions
+- **�🔐 Authentication**: JWT-based authentication with Redis session management
 - **📊 Health Monitoring**: Comprehensive health checks and quota monitoring
 - **🌐 CORS Support**: Configured for Flutter mobile app integration
 - **📝 Request Logging**: Detailed request/response logging with execution times
@@ -132,9 +145,8 @@ The API will be available at `http://localhost:5000`
 
 ### Authentication
 
-- `POST /api/v1/login` - User login
-- `POST /api/v1/register` - User registration
-- `POST /api/v1/verify-token` - Token verification
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User login
 - `POST /api/v1/logout` - User logout
 
 ### AI Services
@@ -148,6 +160,28 @@ The API will be available at `http://localhost:5000`
 - `POST /api/v1/speech-to-text` - Convert speech to text
 - `POST /api/v1/text-to-speech` - Convert text to speech
 - `POST /api/v1/upload-audio` - Upload and process audio files
+
+### Content Generation
+
+- `POST /api/content/generate` - Universal content generation (stories, worksheets, quizzes, lesson plans, visual aids)
+- `GET /api/content/history` - Get content generation history with filtering
+- `GET /api/content/{id}` - Get detailed content information
+- `POST /api/content/{id}/export` - Export content to PDF/DOCX/HTML/JSON
+- `POST /api/content/{id}/variants` - Generate content variants (difficulty, length, style, language)
+- `GET /api/content/templates` - Get available content templates
+- `POST /api/content/suggestions` - Get AI-powered content suggestions
+- `GET /api/content/statistics` - Get content generation statistics
+
+### Weekly Planning
+
+- `POST /api/weekly-planning/plans` - Create comprehensive weekly lesson plans
+- `GET /api/weekly-planning/plans` - Get weekly plans with filtering
+- `GET /api/weekly-planning/plans/{id}` - Get specific plan details
+- `PUT /api/weekly-planning/plans/{id}` - Update weekly plan
+- `DELETE /api/weekly-planning/plans/{id}` - Delete weekly plan
+- `POST /api/weekly-planning/plans/{id}/activities` - Add activities to plan
+- `GET /api/weekly-planning/templates` - Get activity templates
+- `POST /api/weekly-planning/suggestions` - Get AI-powered activity suggestions
 
 ## 🧪 Testing
 
@@ -224,6 +258,15 @@ The application supports multiple environments:
 - `development` - Local development with debug mode
 - `production` - Production deployment
 - `testing` - Test environment with mocked services
+
+## 📚 Documentation
+
+Detailed documentation for specific features:
+
+- **[Content Generation System](docs/CONTENT_GENERATION.md)** - AI-powered educational content creation with stories, worksheets, quizzes, lesson plans, and visual aids
+- **[Weekly Planning System](docs/WEEKLY_PLANNING.md)** - Comprehensive lesson planning with AI suggestions, templates, and scheduling tools
+- **[API Reference](postman_collection.json)** - Complete Postman collection with all endpoints
+- **[Authentication System](docs/AUTHENTICATION.md)** - JWT-based authentication with device tracking (if applicable)
 
 ## 🤝 Contributing
 

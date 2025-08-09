@@ -36,10 +36,13 @@ def create_app(config_name=None):
     # Register middleware
     register_middleware(app)
     
+    # Initialize WebSocket functionality
+    socketio = initialize_websockets(app)
+    
     # Register blueprints
     register_blueprints(app)
     
-    return app
+    return app, socketio
 
 def setup_logging(app):
     """Setup application logging."""
@@ -51,6 +54,22 @@ def setup_logging(app):
     # Create logger for the app
     app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
 
+def initialize_websockets(app):
+    """Initialize WebSocket functionality."""
+    try:
+        from app.websocket_config import websocket_config
+        
+        # Initialize WebSocket configuration with the Flask app
+        socketio = websocket_config.init_app(app)
+        
+        app.logger.info("WebSocket functionality initialized successfully")
+        return socketio
+        
+    except Exception as e:
+        app.logger.error(f"Failed to initialize WebSocket functionality: {str(e)}")
+        # Return None if WebSocket initialization fails
+        return None
+
 def register_blueprints(app):
     """Register all blueprints."""
     from app.routes.health import health_bp
@@ -58,9 +77,17 @@ def register_blueprints(app):
     from app.routes.speech import speech_bp
     from app.routes.auth import auth_bp
     from app.routes.user import user_bp
+    from app.routes.dashboard import dashboard_bp
+    from app.routes.weekly_planning import weekly_planning_bp
+    from app.routes.content_generation import content_generation_bp
+    from app.routes.websocket_api import websocket_api_bp
     
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(ai_bp, url_prefix='/api/v1')
     app.register_blueprint(speech_bp, url_prefix='/api/v1')
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(user_bp, url_prefix='/api/v1/user')
+    app.register_blueprint(dashboard_bp, url_prefix='/api/v1/dashboard')
+    app.register_blueprint(weekly_planning_bp)
+    app.register_blueprint(content_generation_bp)
+    app.register_blueprint(websocket_api_bp)
