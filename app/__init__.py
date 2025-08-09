@@ -1,6 +1,8 @@
 import logging
 from flask import Flask
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from app.config import config
 from app.utils.error_handlers import register_error_handlers
 from app.utils.middleware import register_middleware
@@ -17,6 +19,13 @@ def create_app(config_name=None):
     
     # Initialize CORS
     CORS(app, origins=app.config['CORS_ORIGINS'])
+    
+    # Initialize rate limiter
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["1000 per hour", "100 per minute"]
+    )
     
     # Setup logging
     setup_logging(app)
@@ -48,8 +57,10 @@ def register_blueprints(app):
     from app.routes.ai import ai_bp
     from app.routes.speech import speech_bp
     from app.routes.auth import auth_bp
+    from app.routes.user import user_bp
     
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(ai_bp, url_prefix='/api/v1')
     app.register_blueprint(speech_bp, url_prefix='/api/v1')
-    app.register_blueprint(auth_bp, url_prefix='/api/v1')
+    app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
+    app.register_blueprint(user_bp, url_prefix='/api/v1/user')
