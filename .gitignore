@@ -235,3 +235,20 @@ docs/WEEKLY_PLANNING.md
 docs/CONTENT_GENERATION.md
 WEBSOCKET_IMPLEMENTATION.md
 test_websocket.py
+
+# File Management
+uploads/*
+!uploads/.gitkeep
+!uploads/*/.gitkeep
+*.tmp
+*.temp
+virus_scan_results/
+IMPLEMENTATION_SUMMARY.md
+LOCALIZATION_PERFORMANCE_IMPLEMENTATION.md
+LOCALIZATION_PERFORMANCE_QUICK_GUIDE.md
+QUICK_SETUP.md
+docs/ACCESSIBILITY_AND_SYNC.md
+docs/FILE_MANAGEMENT.md
+test_accessibility_sync.py
+test_file_management.py
+test_localization_performance.py

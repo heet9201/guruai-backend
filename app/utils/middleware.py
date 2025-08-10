@@ -2,11 +2,15 @@ import time
 import logging
 from flask import request, g
 from functools import wraps
+from app.middleware.performance_middleware import PerformanceMiddleware
 
 logger = logging.getLogger(__name__)
 
 def register_middleware(app):
     """Register middleware for the Flask app."""
+    
+    # Initialize performance middleware
+    performance_middleware = PerformanceMiddleware(app)
     
     @app.before_request
     def before_request():
@@ -27,6 +31,16 @@ def register_middleware(app):
         # Add custom headers
         response.headers['X-Request-ID'] = g.request_id
         response.headers['X-Execution-Time'] = f"{execution_time:.3f}s"
+        
+        # Add rate limit headers if available
+        if hasattr(g, 'rate_limit_headers'):
+            rate_limit_info = g.rate_limit_headers
+            if 'remaining' in rate_limit_info:
+                response.headers['X-RateLimit-Remaining'] = str(rate_limit_info['remaining'])
+            if 'limit' in rate_limit_info:
+                response.headers['X-RateLimit-Limit'] = str(rate_limit_info['limit'])
+            if 'reset_at' in rate_limit_info:
+                response.headers['X-RateLimit-Reset'] = rate_limit_info['reset_at']
         
         return response
 

@@ -81,6 +81,11 @@ def register_blueprints(app):
     from app.routes.weekly_planning import weekly_planning_bp
     from app.routes.content_generation import content_generation_bp
     from app.routes.websocket_api import websocket_api_bp
+    from app.routes.file_management_simple import file_management_bp
+    from app.routes.accessibility import accessibility_bp
+    from app.routes.offline_sync import sync_bp
+    from app.routes.localization import localization_bp
+    from app.routes.performance import performance_bp
     
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(ai_bp, url_prefix='/api/v1')
@@ -91,3 +96,8 @@ def register_blueprints(app):
     app.register_blueprint(weekly_planning_bp)
     app.register_blueprint(content_generation_bp)
     app.register_blueprint(websocket_api_bp)
+    app.register_blueprint(file_management_bp, url_prefix='/api/v1')
+    app.register_blueprint(accessibility_bp, url_prefix='/api/v1')
+    app.register_blueprint(sync_bp, url_prefix='/api/v1')
+    app.register_blueprint(localization_bp)
+    app.register_blueprint(performance_bp)

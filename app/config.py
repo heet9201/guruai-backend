@@ -49,6 +49,21 @@ class Config:
     
     # Logging
     LOG_LEVEL = os.environ.get('LOG_LEVEL') or 'INFO'
+    
+    # File Management Configuration
+    GOOGLE_CLOUD_STORAGE_BUCKET = os.environ.get('GOOGLE_CLOUD_STORAGE_BUCKET')
+    LOCAL_STORAGE_PATH = os.environ.get('LOCAL_STORAGE_PATH') or 'uploads'
+    MAX_FILE_SIZE = int(os.environ.get('MAX_FILE_SIZE', '104857600'))  # 100MB default
+    ALLOWED_FILE_EXTENSIONS = os.environ.get('ALLOWED_FILE_EXTENSIONS', 
+        'jpg,jpeg,png,gif,pdf,txt,doc,docx,xls,xlsx,ppt,pptx,zip,mp3,mp4,wav').split(',')
+    
+    # Virus Scanning Configuration
+    VIRUSTOTAL_API_KEY = os.environ.get('VIRUSTOTAL_API_KEY')
+    ENABLE_VIRUS_SCANNING = os.environ.get('ENABLE_VIRUS_SCANNING', 'false').lower() == 'true'
+    
+    # CDN Configuration
+    CDN_BASE_URL = os.environ.get('CDN_BASE_URL')
+    ENABLE_CDN = os.environ.get('ENABLE_CDN', 'false').lower() == 'true'
 
 class DevelopmentConfig(Config):
     """Development configuration."""
