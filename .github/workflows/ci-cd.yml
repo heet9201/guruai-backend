@@ -152,7 +152,7 @@ jobs:
               --redis-version=redis_7_0 \
               --network=default
           fi
-          
+
           # Check if VPC connector exists, create if not
           if ! gcloud compute networks vpc-access connectors describe guruai-connector --region=$REGION 2>/dev/null; then
             echo "VPC connector not found, creating..."
@@ -219,6 +219,11 @@ jobs:
       - name: Deploy to Cloud Run (Production)
         if: success()
         run: |
+          # Capture current revision for potential rollback
+          CURRENT_REVISION=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.latestReadyRevisionName)' 2>/dev/null || echo "none")
+          echo "CURRENT_REVISION=$CURRENT_REVISION" >> $GITHUB_ENV
+          echo "Current production revision: $CURRENT_REVISION"
+          
           gcloud run deploy $SERVICE_NAME \
             --image $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA \
             --platform managed \
@@ -234,25 +239,68 @@ jobs:
             --vpc-connector guruai-connector
 
       - name: Update traffic allocation (Blue-Green)
+        if: ${{ !contains(github.event.head_commit.message, '[skip-gradual]') }}
         run: |
+          # Get the latest revision name from the deployment
+          LATEST_REVISION=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.latestCreatedRevisionName)')
+          echo "Latest revision: $LATEST_REVISION"
+          
+          # Health check the new revision before traffic shift
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.url)')
+          echo "Performing health check on new revision..."
+          
+          # Wait for revision to be ready
+          sleep 60
+          
+          # Health check with retry
+          for i in {1..5}; do
+            if curl -f -s "$SERVICE_URL/api/v1/health" > /dev/null; then
+              echo "Health check passed on attempt $i"
+              break
+            else
+              echo "Health check failed on attempt $i, retrying..."
+              sleep 30
+            fi
+            if [ $i -eq 5 ]; then
+              echo "Health check failed after 5 attempts, aborting traffic shift"
+              exit 1
+            fi
+          done
+          
           # Gradual traffic shift: 10% -> 50% -> 100%
+          echo "Shifting 10% traffic to new revision..."
           gcloud run services update-traffic $SERVICE_NAME \
-            --to-revisions=$GITHUB_SHA=10 \
+            --to-revisions=$LATEST_REVISION=10 \
             --region=$REGION
 
           sleep 300  # Wait 5 minutes
 
           # Check metrics and error rates
           # If successful, continue to 50%
+          echo "Shifting 50% traffic to new revision..."
           gcloud run services update-traffic $SERVICE_NAME \
-            --to-revisions=$GITHUB_SHA=50 \
+            --to-revisions=$LATEST_REVISION=50 \
             --region=$REGION
 
           sleep 300  # Wait 5 minutes
 
           # Final deployment to 100%
+          echo "Shifting 100% traffic to new revision..."
           gcloud run services update-traffic $SERVICE_NAME \
-            --to-revisions=$GITHUB_SHA=100 \
+            --to-revisions=$LATEST_REVISION=100 \
+            --region=$REGION
+
+      - name: Direct traffic allocation (Skip Gradual)
+        if: ${{ contains(github.event.head_commit.message, '[skip-gradual]') }}
+        run: |
+          # Get the latest revision name from the deployment
+          LATEST_REVISION=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.latestCreatedRevisionName)')
+          echo "Latest revision: $LATEST_REVISION"
+          echo "Skipping gradual rollout, switching 100% traffic immediately..."
+          
+          # Direct 100% traffic switch
+          gcloud run services update-traffic $SERVICE_NAME \
+            --to-revisions=$LATEST_REVISION=100 \
             --region=$REGION
 
   rollback:
