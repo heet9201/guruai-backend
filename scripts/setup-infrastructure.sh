@@ -31,7 +31,8 @@ gcloud services enable \
   cloudtrace.googleapis.com \
   compute.googleapis.com \
   servicenetworking.googleapis.com \
-  cloudbuild.googleapis.com
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com
 
 # Create VPC network
 echo "🌐 Creating VPC network..."
@@ -101,6 +102,13 @@ for secret in database-url jwt-secret-key encryption-key pii-encryption-key open
     --member "serviceAccount:guruai-cloud-run@$PROJECT_ID.iam.gserviceaccount.com" \
     --role "roles/secretmanager.secretAccessor"
 done
+
+# Create Artifact Registry repository
+echo "📦 Creating Artifact Registry repository..."
+gcloud artifacts repositories create guruai-backend \
+  --repository-format=docker \
+  --location=$REGION \
+  --description="Docker repository for GuruAI Backend" || echo "Repository already exists"
 
 echo "✅ Infrastructure setup completed!"
 echo ""
