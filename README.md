@@ -520,38 +520,98 @@ python -m pytest tests/ --cov=app
 
 ## 🚀 Deployment
 
-### Using Gunicorn (Production)
+This project uses a modern CI/CD pipeline with automated testing, security scanning, and blue-green deployment strategies.
+
+### Production Architecture
+
+The application is deployed on Google Cloud Platform with the following components:
+
+- **Google Cloud Run**: Auto-scaling containerized deployment
+- **Google Cloud Memorystore (Redis)**: High-performance caching and session storage
+- **VPC Connector**: Secure private network connectivity
+- **Artifact Registry**: Docker image storage
+- **Cloud Build**: Automated CI/CD pipeline
+
+### Quick Deployment
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ```bash
-gunicorn main:app --bind 0.0.0.0:8000 --workers 4
-```
+# 1. Set up Google Cloud Project
+gcloud projects create your-project-id
+gcloud config set project your-project-id
 
-### Using Docker
+# 2. Run automated setup
+./scripts/setup-infrastructure.sh your-project-id us-central1
 
-```dockerfile
-FROM python:3.9-slim
+# 3. Configure GitHub Secrets
+# See DEPLOYMENT.md for complete secret setup
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 5000
-
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:5000"]
+# 4. Deploy via GitHub Actions
+git push origin main  # Automatically triggers deployment
 ```
 
 ### Environment Variables
 
-| Variable                         | Description                  | Default                    |
-| -------------------------------- | ---------------------------- | -------------------------- |
-| `FLASK_ENV`                      | Environment mode             | `development`              |
-| `SECRET_KEY`                     | JWT secret key               | Required                   |
-| `GOOGLE_CLOUD_PROJECT`           | Google Cloud project ID      | Required                   |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON | Required                   |
-| `REDIS_URL`                      | Redis connection URL         | `redis://localhost:6379/0` |
-| `CORS_ORIGINS`                   | Allowed CORS origins         | `*`                        |
-| `LOG_LEVEL`                      | Logging level                | `INFO`                     |
+| Variable                         | Description                  | Default       | Required |
+| -------------------------------- | ---------------------------- | ------------- | -------- |
+| `ENVIRONMENT`                    | Deployment environment       | `development` | Yes      |
+| `REDIS_HOST`                     | Redis server hostname        | `localhost`   | Yes      |
+| `REDIS_PORT`                     | Redis server port            | `6379`        | Yes      |
+| `SECRET_KEY`                     | JWT secret key               | Required      | Yes      |
+| `GOOGLE_CLOUD_PROJECT`           | Google Cloud project ID      | Required      | Yes      |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON | Required      | Yes      |
+| `CORS_ORIGINS`                   | Allowed CORS origins         | `*`           | No       |
+| `LOG_LEVEL`                      | Logging level                | `INFO`        | No       |
+
+### Deployment Strategies
+
+#### Gradual Rollout (Default)
+
+The CI/CD pipeline uses a blue-green deployment strategy with gradual traffic shifting:
+
+- **10%** traffic to new version (5 minutes)
+- **50%** traffic to new version (5 minutes)
+- **100%** traffic to new version
+
+#### Fast Deployment
+
+For urgent fixes, skip gradual rollout by including `[skip-gradual]` in your commit message:
+
+```bash
+git commit -m "hotfix: Critical security patch [skip-gradual]"
+git push origin main
+```
+
+### Health Monitoring
+
+The application provides comprehensive health checking:
+
+- **`/api/v1/health`** - Complete system health with Redis, memory, disk status
+- **Readiness checks** - Validates all dependencies before traffic routing
+- **Auto-rollback** - Automatic rollback on failed health checks
+
+Sample health response:
+
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "redis": {
+      "status": "healthy",
+      "details": {
+        "connected_clients": 6,
+        "redis_version": "7.0.15",
+        "used_memory_human": "3.88M"
+      }
+    },
+    "memory": { "status": "healthy" },
+    "disk": { "status": "healthy" }
+  },
+  "environment": "production",
+  "uptime_seconds": 3600
+}
+```
 
 ## 📊 Monitoring
 

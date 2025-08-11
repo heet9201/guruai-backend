@@ -223,7 +223,7 @@ jobs:
           CURRENT_REVISION=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.latestReadyRevisionName)' 2>/dev/null || echo "none")
           echo "CURRENT_REVISION=$CURRENT_REVISION" >> $GITHUB_ENV
           echo "Current production revision: $CURRENT_REVISION"
-          
+
           gcloud run deploy $SERVICE_NAME \
             --image $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA \
             --platform managed \
@@ -244,14 +244,14 @@ jobs:
           # Get the latest revision name from the deployment
           LATEST_REVISION=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.latestCreatedRevisionName)')
           echo "Latest revision: $LATEST_REVISION"
-          
+
           # Health check the new revision before traffic shift
           SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.url)')
           echo "Performing health check on new revision..."
-          
+
           # Wait for revision to be ready
           sleep 60
-          
+
           # Health check with retry
           for i in {1..5}; do
             if curl -f -s "$SERVICE_URL/api/v1/health" > /dev/null; then
@@ -266,7 +266,7 @@ jobs:
               exit 1
             fi
           done
-          
+
           # Gradual traffic shift: 10% -> 50% -> 100%
           echo "Shifting 10% traffic to new revision..."
           gcloud run services update-traffic $SERVICE_NAME \
@@ -297,7 +297,7 @@ jobs:
           LATEST_REVISION=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.latestCreatedRevisionName)')
           echo "Latest revision: $LATEST_REVISION"
           echo "Skipping gradual rollout, switching 100% traffic immediately..."
-          
+
           # Direct 100% traffic switch
           gcloud run services update-traffic $SERVICE_NAME \
             --to-revisions=$LATEST_REVISION=100 \
