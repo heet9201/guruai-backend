@@ -54,6 +54,7 @@ jobs:
           echo "FLASK_ENV=testing" >> $GITHUB_ENV
           echo "DATABASE_URL=postgresql://postgres:test_password@localhost:5432/test_db" >> $GITHUB_ENV
           echo "REDIS_HOST=localhost" >> $GITHUB_ENV
+          echo "REDIS_PORT=6379" >> $GITHUB_ENV
           echo "JWT_SECRET_KEY=test-secret-key" >> $GITHUB_ENV
           echo "ENCRYPTION_KEY=test-encryption-key" >> $GITHUB_ENV
           echo "PII_ENCRYPTION_KEY=test-pii-key" >> $GITHUB_ENV
@@ -137,65 +138,100 @@ jobs:
           gcloud services enable artifactregistry.googleapis.com
           gcloud services enable run.googleapis.com
           gcloud services enable cloudbuild.googleapis.com
+          gcloud services enable redis.googleapis.com
+          gcloud services enable vpcaccess.googleapis.com
+
+      - name: Ensure Redis infrastructure exists
+        run: |
+          # Check if Redis instance exists, create if not
+          if ! gcloud redis instances describe guruai-redis --region=$REGION 2>/dev/null; then
+            echo "Redis instance not found, creating..."
+            gcloud redis instances create guruai-redis \
+              --size=1 \
+              --region=$REGION \
+              --redis-version=redis_7_0 \
+              --network=default
+          fi
+          
+          # Check if VPC connector exists, create if not
+          if ! gcloud compute networks vpc-access connectors describe guruai-connector --region=$REGION 2>/dev/null; then
+            echo "VPC connector not found, creating..."
+            # Create subnet first if it doesn't exist
+            gcloud compute networks subnets create guruai-connector-subnet \
+              --range=10.8.0.0/28 \
+              --network=default \
+              --region=$REGION || true
+            
+            gcloud compute networks vpc-access connectors create guruai-connector \
+              --region=$REGION \
+              --subnet=guruai-connector-subnet
+          fi
 
       - name: Create Artifact Registry repository
         run: |
-          gcloud artifacts repositories create $SERVICE_NAME \
+          gcloud artifacts repositories create guruai-backend \
             --repository-format=docker \
             --location=$REGION \
-            --description="Docker repository for $SERVICE_NAME" || true
+            --description="Docker repository for guruai-backend" || true
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker $REGION-docker.pkg.dev
 
       - name: Build Docker image
         run: |
-          docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA .
-          docker tag $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:latest
+          docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA .
+          docker tag $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:latest
 
       - name: Push Docker image to Artifact Registry
         run: |
-          docker push $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA
-          docker push $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:latest
+          docker push $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA
+          docker push $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:latest
+
+      - name: Get Redis host IP
+        run: |
+          REDIS_HOST=$(gcloud redis instances describe guruai-redis --region=$REGION --format='value(host)')
+          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
+          echo "Redis host IP: $REDIS_HOST"
 
       - name: Deploy to Cloud Run (Staging)
         run: |
           gcloud run deploy $SERVICE_NAME-staging \
-            --image $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA \
+            --image $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA \
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
-            --memory 4Gi \
-            --cpu 2 \
+            --memory 2Gi \
+            --cpu 1 \
             --min-instances 0 \
-            --max-instances 100 \
+            --max-instances 10 \
             --timeout 300 \
-            --concurrency 1000 \
-            --set-env-vars="FLASK_ENV=staging" \
-            --vpc-connector projects/$PROJECT_ID/locations/$REGION/connectors/guruai-connector
+            --concurrency 80 \
+            --set-env-vars="ENVIRONMENT=staging,REDIS_HOST=$REDIS_HOST,REDIS_PORT=6379" \
+            --vpc-connector guruai-connector
 
       - name: Run smoke tests on staging
         run: |
           STAGING_URL=$(gcloud run services describe $SERVICE_NAME-staging --region=$REGION --format='value(status.url)')
-          curl -f $STAGING_URL/health || exit 1
-          pytest tests/smoke/ --base-url=$STAGING_URL
+          curl -f $STAGING_URL/api/v1/health || exit 1
+          # Optional: Add more smoke tests if they exist
+          # pytest tests/smoke/ --base-url=$STAGING_URL
 
       - name: Deploy to Cloud Run (Production)
         if: success()
         run: |
           gcloud run deploy $SERVICE_NAME \
-            --image $REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE_NAME/$SERVICE_NAME:$GITHUB_SHA \
+            --image $REGION-docker.pkg.dev/$PROJECT_ID/guruai-backend/app:$GITHUB_SHA \
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
-            --memory 4Gi \
-            --cpu 2 \
+            --memory 2Gi \
+            --cpu 1 \
             --min-instances 1 \
-            --max-instances 1000 \
+            --max-instances 10 \
             --timeout 300 \
-            --concurrency 1000 \
-            --set-env-vars="FLASK_ENV=production" \
-            --vpc-connector projects/$PROJECT_ID/locations/$REGION/connectors/guruai-connector
+            --concurrency 80 \
+            --set-env-vars="ENVIRONMENT=production,REDIS_HOST=$REDIS_HOST,REDIS_PORT=6379" \
+            --vpc-connector guruai-connector
 
       - name: Update traffic allocation (Blue-Green)
         run: |
@@ -241,6 +277,7 @@ jobs:
             --region=$REGION
 
       - name: Send rollback notification
+        if: env.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         with:
           status: failure

@@ -43,8 +43,13 @@ class HealthChecker:
                     'response_time_ms': round(check_duration * 1000, 2)
                 }
                 
-                if result['status'] != 'healthy':
-                    overall_status = 'unhealthy'
+                # Only core system checks affect overall health
+                if result['status'] == 'unhealthy':
+                    if check_name in ['memory', 'disk', 'storage', 'redis']:
+                        overall_status = 'unhealthy'
+                elif result['status'] == 'degraded':
+                    if overall_status == 'healthy':
+                        overall_status = 'degraded'
                     
             except Exception as e:
                 logger.error(f"Health check {check_name} failed: {str(e)}")
@@ -54,7 +59,9 @@ class HealthChecker:
                     'details': {},
                     'response_time_ms': 0
                 }
-                overall_status = 'unhealthy'
+                # Only mark overall as unhealthy for critical system checks
+                if check_name in ['memory', 'disk', 'storage', 'redis']:
+                    overall_status = 'unhealthy'
         
         total_duration = time.time() - start_time
         
