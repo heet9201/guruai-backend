@@ -1,0 +1,35 @@
+# Security Framework Dependencies
+# Add these to your main requirements.txt file
+
+# Authentication & JWT
+PyJWT>=2.8.0
+cryptography>=41.0.0
+
+# Multi-Factor Authentication
+pyotp>=2.9.0
+qrcode>=7.4.2
+
+# Redis for sessions and caching
+redis>=5.0.0
+
+# Password hashing (already included in werkzeug/Flask)
+# werkzeug>=2.3.0
+
+# Input validation and sanitization
+bleach>=6.0.0
+wtforms>=3.0.0
+
+# Rate limiting utilities
+limits>=3.5.0
+
+# Security headers
+flask-talisman>=1.1.0
+
+# Additional security utilities
+python-dateutil>=2.8.2
+user-agents>=2.2.0
+
+# Development/Testing dependencies (optional)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+factory-boy>=3.3.0
