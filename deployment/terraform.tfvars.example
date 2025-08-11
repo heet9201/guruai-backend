@@ -1,0 +1,58 @@
+# Terraform variables file
+# Copy this file to terraform.tfvars and customize the values
+
+# Required variables
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# Environment configuration
+environment = "production"  # or "staging"
+
+# Custom domain (optional)
+domain_name = ""  # e.g., "api.yourdomain.com"
+
+# Performance configuration
+min_instances = 0     # Scale to zero when no traffic
+max_instances = 1000  # Maximum instances for high load
+memory        = "4Gi" # Memory per instance
+cpu           = "2"   # CPU cores per instance
+
+# Database configuration
+database_tier      = "db-custom-2-8192"  # 2 vCPUs, 8GB RAM
+database_disk_size = 100                 # GB
+enable_backup      = true
+backup_retention_days = 30
+
+# Redis configuration
+redis_memory_size_gb = 5  # GB
+
+# CDN configuration
+enable_cdn = true
+
+# Monitoring configuration
+notification_email   = "your-email@example.com"
+slack_webhook_url    = ""  # Optional Slack webhook URL
+
+# Additional environment-specific configurations
+# Uncomment and modify as needed:
+
+# For staging environment:
+# environment = "staging"
+# min_instances = 0
+# max_instances = 10
+# memory = "2Gi"
+# cpu = "1"
+# database_tier = "db-custom-1-3840"
+# redis_memory_size_gb = 2
+# enable_backup = false
+
+# For development environment:
+# environment = "development"
+# min_instances = 0
+# max_instances = 5
+# memory = "1Gi"
+# cpu = "1"
+# database_tier = "db-f1-micro"
+# redis_memory_size_gb = 1
+# enable_backup = false
+# enable_cdn = false

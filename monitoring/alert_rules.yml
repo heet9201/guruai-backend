@@ -1,0 +1,74 @@
+groups:
+  - name: guruai_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(flask_http_request_exceptions_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} requests per second"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(flask_http_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }} seconds"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 / 1024 > 3.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }} GB"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute"
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance is not responding"
+
+      - alert: HighConcurrentUsers
+        expr: flask_http_request_total > 10000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "High concurrent users"
+          description: "Current users: {{ $value }}"
+
+      - alert: AIServiceLatency
+        expr: histogram_quantile(0.95, rate(ai_service_request_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI service high latency"
+          description: "AI service 95th percentile latency is {{ $value }} seconds"
+
+      - alert: StorageQuotaWarning
+        expr: storage_quota_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage quota warning"
+          description: "Storage usage is {{ $value }}% of quota"

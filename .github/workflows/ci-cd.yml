@@ -1,0 +1,232 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: guruai-backend
+  REGION: us-central1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Set up environment variables
+        run: |
+          echo "FLASK_ENV=testing" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql://postgres:test_password@localhost:5432/test_db" >> $GITHUB_ENV
+          echo "REDIS_HOST=localhost" >> $GITHUB_ENV
+          echo "JWT_SECRET_KEY=test-secret-key" >> $GITHUB_ENV
+          echo "ENCRYPTION_KEY=test-encryption-key" >> $GITHUB_ENV
+          echo "PII_ENCRYPTION_KEY=test-pii-key" >> $GITHUB_ENV
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v
+
+      - name: Run API tests
+        run: |
+          pytest tests/api/ -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install security scanning tools
+        run: |
+          pip install bandit safety semgrep
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r app/ -f json -o bandit-report.json || true
+
+      - name: Run Safety check
+        run: |
+          safety check --json --output safety-report.json || true
+
+      - name: Run Semgrep security scan
+        run: |
+          semgrep --config=auto app/ --json --output=semgrep-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+            semgrep-report.json
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Build Docker image
+        run: |
+          docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+          docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
+
+      - name: Push Docker image to GCR
+        run: |
+          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
+          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
+
+      - name: Deploy to Cloud Run (Staging)
+        run: |
+          gcloud run deploy $SERVICE_NAME-staging \
+            --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --memory 4Gi \
+            --cpu 2 \
+            --min-instances 0 \
+            --max-instances 100 \
+            --timeout 300 \
+            --concurrency 1000 \
+            --set-env-vars="FLASK_ENV=staging" \
+            --vpc-connector projects/$PROJECT_ID/locations/$REGION/connectors/guruai-connector
+
+      - name: Run smoke tests on staging
+        run: |
+          STAGING_URL=$(gcloud run services describe $SERVICE_NAME-staging --region=$REGION --format='value(status.url)')
+          curl -f $STAGING_URL/health || exit 1
+          pytest tests/smoke/ --base-url=$STAGING_URL
+
+      - name: Deploy to Cloud Run (Production)
+        if: success()
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --memory 4Gi \
+            --cpu 2 \
+            --min-instances 1 \
+            --max-instances 1000 \
+            --timeout 300 \
+            --concurrency 1000 \
+            --set-env-vars="FLASK_ENV=production" \
+            --vpc-connector projects/$PROJECT_ID/locations/$REGION/connectors/guruai-connector
+
+      - name: Update traffic allocation (Blue-Green)
+        run: |
+          # Gradual traffic shift: 10% -> 50% -> 100%
+          gcloud run services update-traffic $SERVICE_NAME \
+            --to-revisions=$GITHUB_SHA=10 \
+            --region=$REGION
+
+          sleep 300  # Wait 5 minutes
+
+          # Check metrics and error rates
+          # If successful, continue to 50%
+          gcloud run services update-traffic $SERVICE_NAME \
+            --to-revisions=$GITHUB_SHA=50 \
+            --region=$REGION
+
+          sleep 300  # Wait 5 minutes
+
+          # Final deployment to 100%
+          gcloud run services update-traffic $SERVICE_NAME \
+            --to-revisions=$GITHUB_SHA=100 \
+            --region=$REGION
+
+  rollback:
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: build-and-deploy
+
+    steps:
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Rollback to previous revision
+        run: |
+          PREVIOUS_REVISION=$(gcloud run revisions list --service=$SERVICE_NAME --region=$REGION --format='value(metadata.name)' --limit=2 | tail -n 1)
+          gcloud run services update-traffic $SERVICE_NAME \
+            --to-revisions=$PREVIOUS_REVISION=100 \
+            --region=$REGION
+
+      - name: Send rollback notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: 🚨 Deployment failed and rollback executed for ${{ github.sha }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

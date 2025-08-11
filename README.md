@@ -18,8 +18,328 @@ A powerful Flask- **🤖 AI Chat**: Vertex AI integration with Gemini Pro for in
 
 This backend follows the **Application Factory Pattern** with a modular structure:
 
+````
+# 🧠 GuruAI Backend
+
+A comprehensive AI-powered educational assistant backend built with Flask, designed for scalability, security, and modern DevOps practices.
+
+## 🌟 Features
+
+### Core Functionality
+- **🤖 AI-Powered Chat**: Intelligent conversational AI using OpenAI GPT models
+- **📄 Content Generation**: Automated content creation with customizable templates
+- **📁 File Management**: Secure file upload, processing, and storage
+- **♿ Accessibility**: WCAG-compliant features and screen reader support
+- **📱 Offline Sync**: Progressive Web App capabilities with offline functionality
+- **📊 Dashboard Analytics**: Real-time user behavior tracking and insights
+
+### Security & Authentication
+- **🔐 JWT Authentication**: Secure token-based authentication with refresh tokens
+- **🛡️ Multi-Factor Authentication**: TOTP-based 2FA support
+- **🔒 End-to-End Encryption**: Data encryption at rest and in transit
+- **🚨 Content Moderation**: AI-powered content filtering and safety measures
+- **📋 Audit Logging**: Comprehensive security event tracking
+- **⚡ Rate Limiting**: API abuse prevention and DDoS protection
+
+### DevOps & Infrastructure
+- **☁️ Google Cloud Run**: Auto-scaling containerized deployment
+- **🔄 CI/CD Pipeline**: Automated testing, security scanning, and deployment
+- **📈 Monitoring**: Comprehensive metrics, logging, and alerting
+- **🏗️ Infrastructure as Code**: Terraform-managed cloud resources
+- **🐳 Containerization**: Multi-stage Docker builds optimized for production
+
+## 🏗️ Architecture
+
+### Technology Stack
+- **Backend**: Flask 3.0+ with Python 3.11
+- **Database**: PostgreSQL 15 with connection pooling
+- **Cache**: Redis for session management and caching
+- **AI Service**: OpenAI GPT-4 integration
+- **Storage**: Google Cloud Storage for file handling
+- **Monitoring**: Prometheus, Grafana, Google Cloud Monitoring
+
+### Infrastructure
+- **Deployment**: Google Cloud Run with auto-scaling (0-1000 instances)
+- **Load Balancing**: Google Cloud Load Balancer with CDN
+- **Security**: VPC networking, Secret Manager, SSL termination
+- **Backup**: Automated database backups with point-in-time recovery
+
+## 🚀 Quick Start
+
+### Development Setup
+
+1. **Clone and setup the development environment**:
+   ```bash
+   git clone <repository-url>
+   cd guruai-backend
+   ./scripts/dev-setup.sh
+````
+
+2. **Configure environment variables**:
+
+   ```bash
+   # Edit .env file with your configuration
+   nano .env
+   # Add your OpenAI API key and other settings
+   ```
+
+3. **Start the development server**:
+   ```bash
+   source venv/bin/activate
+   python app.py
+   ```
+
+The application will be available at `http://localhost:5000`
+
+### Production Deployment
+
+1. **Set up Google Cloud infrastructure**:
+
+   ```bash
+   # Configure project and enable APIs
+   ./scripts/setup-infrastructure.sh YOUR_PROJECT_ID us-central1
+   ```
+
+2. **Deploy with Terraform**:
+
+   ```bash
+   # Copy and configure terraform variables
+   cp deployment/terraform.tfvars.example deployment/terraform.tfvars
+   nano deployment/terraform.tfvars
+
+   # Deploy infrastructure
+   ./scripts/terraform-deploy.sh YOUR_PROJECT_ID production
+   ```
+
+3. **Deploy application**:
+
+   ```bash
+   # Deploy via CI/CD pipeline
+   git push origin main
+
+   # Or deploy manually
+   ./scripts/deploy.sh
+   ```
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## 📚 API Documentation
+
+### Authentication Endpoints
+
 ```
-guruai-backend/
+POST /api/v1/auth/register     - User registration
+POST /api/v1/auth/login        - User login
+POST /api/v1/auth/refresh      - Token refresh
+POST /api/v1/auth/logout       - User logout
+POST /api/v1/auth/mfa/setup    - Setup 2FA
+POST /api/v1/auth/mfa/verify   - Verify 2FA token
+```
+
+### Chat & AI Endpoints
+
+```
+POST /api/v1/chat/message      - Send chat message
+GET  /api/v1/chat/history      - Get chat history
+POST /api/v1/content/generate  - Generate content
+GET  /api/v1/content/templates - Get content templates
+```
+
+### File Management
+
+```
+POST /api/v1/files/upload      - Upload file
+GET  /api/v1/files/{id}        - Download file
+DELETE /api/v1/files/{id}      - Delete file
+GET  /api/v1/files/            - List files
+```
+
+### Health & Monitoring
+
+```
+GET  /health                   - Application health
+GET  /health/ready             - Readiness probe
+GET  /health/live              - Liveness probe
+GET  /metrics                  - Prometheus metrics
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable         | Description                  | Default      |
+| ---------------- | ---------------------------- | ------------ |
+| `FLASK_ENV`      | Environment mode             | `production` |
+| `DATABASE_URL`   | PostgreSQL connection string | Required     |
+| `REDIS_URL`      | Redis connection string      | Required     |
+| `JWT_SECRET_KEY` | JWT signing key              | Required     |
+| `OPENAI_API_KEY` | OpenAI API key               | Required     |
+| `ENCRYPTION_KEY` | Data encryption key          | Required     |
+
+See [scripts/setup-env.sh](scripts/setup-env.sh) for a complete list.
+
+### Security Configuration
+
+- **JWT Tokens**: 1-hour access tokens, 7-day refresh tokens
+- **Rate Limiting**: 100 requests per hour per user
+- **File Upload**: 16MB max size, restricted file types
+- **Content Moderation**: Automatic toxicity detection
+- **Encryption**: AES-256 encryption for sensitive data
+
+## 📊 Monitoring & Observability
+
+### Metrics Tracked
+
+- **Performance**: Response times, throughput, error rates
+- **Business**: User engagement, AI usage, content generation
+- **Infrastructure**: CPU, memory, disk, network usage
+- **Security**: Authentication attempts, rate limit violations
+
+### Alerting
+
+- High error rates (>1%)
+- Slow response times (>2s for chat, >30s for content)
+- Resource utilization (>80% memory/CPU)
+- Service downtime or health check failures
+
+### Dashboards
+
+- **Application Dashboard**: Request metrics, user activity
+- **Infrastructure Dashboard**: Resource usage, scaling metrics
+- **Security Dashboard**: Authentication events, security incidents
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with coverage
+python -m pytest --cov=app tests/
+
+# Run specific test categories
+python -m pytest tests/unit/
+python -m pytest tests/integration/
+python -m pytest tests/api/
+```
+
+### Test Categories
+
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Database and service integration
+- **API Tests**: Endpoint functionality and security
+- **Load Tests**: Performance and scalability validation
+
+## 🔒 Security
+
+### Security Features
+
+- **Authentication**: JWT with refresh token rotation
+- **Authorization**: Role-based access control (RBAC)
+- **Data Protection**: Encryption at rest and in transit
+- **Input Validation**: Comprehensive request validation
+- **Security Headers**: CSRF, XSS, and clickjacking protection
+- **Audit Logging**: Complete security event tracking
+
+### Security Scanning
+
+- **SAST**: Static code analysis with Bandit
+- **Dependency Scanning**: Vulnerability detection with Safety
+- **Secret Scanning**: Credential leak detection
+- **Container Scanning**: Docker image vulnerability assessment
+
+## 🤝 Contributing
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Run tests and security checks: `python -m pytest && bandit -r app/`
+5. Commit your changes: `git commit -m 'Add amazing feature'`
+6. Push to the branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+### Code Standards
+
+- **Style**: Follow PEP 8 with Black formatting
+- **Testing**: Maintain >90% test coverage
+- **Documentation**: Document all public functions and classes
+- **Security**: Follow OWASP security guidelines
+
+## 📈 Performance & Scalability
+
+### Performance Targets
+
+- **Response Time**: <2s for chat, <30s for content generation
+- **Throughput**: 10,000+ concurrent users
+- **Availability**: 99.9% uptime SLA
+- **Scalability**: Auto-scaling from 0 to 1000 instances
+
+### Optimization Features
+
+- **Caching**: Redis-based response caching
+- **CDN**: Global content delivery network
+- **Database**: Connection pooling and query optimization
+- **Load Balancing**: Geographic traffic distribution
+
+## 📋 Roadmap
+
+### Current Version (v1.0)
+
+- ✅ Core AI chat functionality
+- ✅ Authentication and security
+- ✅ File management system
+- ✅ Production deployment infrastructure
+
+### Upcoming Features (v1.1)
+
+- 🔄 Advanced content templates
+- 🔄 Real-time collaboration features
+- 🔄 Enhanced analytics dashboard
+- 🔄 Mobile app API support
+
+### Future Enhancements (v2.0)
+
+- 📅 Multi-language support
+- 📅 Advanced AI model integration
+- 📅 Blockchain-based authentication
+- 📅 Edge computing deployment
+
+## 📞 Support
+
+### Documentation
+
+- [Deployment Guide](DEPLOYMENT.md)
+- [API Documentation](docs/api.md)
+- [Security Guide](docs/security.md)
+- [Development Setup](docs/development.md)
+
+### Getting Help
+
+- **Issues**: Create a GitHub issue for bugs or feature requests
+- **Discussions**: Use GitHub Discussions for general questions
+- **Security**: Report security issues to security@example.com
+- **Commercial Support**: Contact support@example.com
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🏆 Acknowledgments
+
+- **OpenAI**: For providing the GPT models that power our AI features
+- **Google Cloud**: For the robust infrastructure platform
+- **Flask Community**: For the excellent web framework and ecosystem
+- **Contributors**: All the developers who have contributed to this project
+
+---
+
+<div align="center">
+<strong>Built with ❤️ for the future of AI-powered education</strong>
+</div>
 ├── app/
 │   ├── __init__.py          # Application factory
 │   ├── config.py            # Environment-based configuration
