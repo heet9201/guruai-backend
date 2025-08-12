@@ -21,7 +21,7 @@ from app.services.content_export_service import ContentExportService
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-content_generation_bp = Blueprint('content_generation', __name__, url_prefix='/api/content')
+content_generation_bp = Blueprint('content_generation', __name__, url_prefix='/api/v1/content')
 
 # Initialize services
 content_service = ContentGenerationService()

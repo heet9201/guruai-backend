@@ -93,11 +93,11 @@ def register_blueprints(app):
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(user_bp, url_prefix='/api/v1/user')
     app.register_blueprint(dashboard_bp, url_prefix='/api/v1/dashboard')
-    app.register_blueprint(weekly_planning_bp)
-    app.register_blueprint(content_generation_bp)
+    app.register_blueprint(weekly_planning_bp)  # Already has /api/v1/weekly-planning prefix
+    app.register_blueprint(content_generation_bp)  # Already has /api/content prefix
     app.register_blueprint(websocket_api_bp)
     app.register_blueprint(file_management_bp, url_prefix='/api/v1')
-    app.register_blueprint(accessibility_bp, url_prefix='/api/v1')
-    app.register_blueprint(sync_bp, url_prefix='/api/v1')
-    app.register_blueprint(localization_bp)
-    app.register_blueprint(performance_bp)
+    app.register_blueprint(accessibility_bp, url_prefix='/api/v1/accessibility')
+    app.register_blueprint(sync_bp, url_prefix='/api/v1/offline-sync')
+    app.register_blueprint(localization_bp, url_prefix='/api/v1/localization')
+    app.register_blueprint(performance_bp, url_prefix='/api/v1/performance')

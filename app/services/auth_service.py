@@ -22,17 +22,31 @@ class AuthService:
         try:
             from flask import current_app
             
-            # Initialize Redis
-            redis_url = current_app.config.get('REDIS_URL', 'redis://localhost:6379/0')
-            self.redis_client = redis.from_url(redis_url)
+            # Initialize Redis with fallback to in-memory storage
+            try:
+                redis_url = current_app.config.get('REDIS_URL', 'redis://localhost:6379/0')
+                self.redis_client = redis.from_url(redis_url)
+                # Test Redis connection
+                self.redis_client.ping()
+                logger.info("Redis connected successfully")
+            except Exception as redis_error:
+                logger.warning(f"Redis connection failed: {redis_error}. Using in-memory storage.")
+                self.redis_client = None
             
-            # Initialize Firebase
-            firebase_creds_path = current_app.config.get('FIREBASE_CREDENTIALS_PATH')
-            if firebase_creds_path and not firebase_admin._apps:
-                cred = credentials.Certificate(firebase_creds_path)
-                self.firebase_app = firebase_admin.initialize_app(cred)
+            # Initialize Firebase using Application Default Credentials
+            try:
+                if not firebase_admin._apps:
+                    # Use Application Default Credentials when running on Cloud Run
+                    self.firebase_app = firebase_admin.initialize_app()
+                    logger.info("Firebase initialized with Application Default Credentials")
+                else:
+                    self.firebase_app = firebase_admin.get_app()
+                    logger.info("Firebase app already initialized")
+            except Exception as firebase_error:
+                logger.error(f"Firebase initialization failed: {firebase_error}")
+                self.firebase_app = None
             
-            logger.info("Auth services initialized successfully")
+            logger.info("Auth services initialization completed")
             
         except Exception as e:
             logger.error(f"Failed to initialize auth services: {str(e)}")

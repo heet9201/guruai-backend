@@ -79,6 +79,75 @@ def chat():
             'message': str(e)
         }), 500
 
+@ai_bp.route('/vision', methods=['POST'])
+@token_required
+@require_json
+@validate_required_fields(['image_data'])
+def vision():
+    """Simple vision analysis endpoint for compatibility."""
+    start_time = time.time()
+    
+    try:
+        data = request.get_json()
+        image_data = data['image_data']
+        prompt = data.get('prompt', 'Analyze this image')
+        user_id = g.current_user.get('id')
+        
+        logger.info(f"Vision analysis request from user {user_id}: {prompt[:50]}...")
+        
+        # Handle base64 image data
+        try:
+            if image_data.startswith('data:image'):
+                image_data = image_data.split(',')[1]
+            image_bytes = base64.b64decode(image_data)
+        except Exception as e:
+            return jsonify({
+                'error': 'Invalid image data',
+                'message': f'Could not decode image data: {str(e)}'
+            }), 400
+        
+        response = ai_service.analyze_image(
+            image_data=image_bytes,
+            prompt=prompt
+        )
+        
+        # Calculate duration and track activity
+        duration_seconds = int(time.time() - start_time)
+        dashboard_service.track_activity(
+            user_id=user_id,
+            activity_type=ActivityType.ANALYSIS,
+            title="AI Vision Analysis",
+            description=f"Vision analysis: {prompt[:100]}...",
+            metadata={
+                'feature': 'ai_vision',
+                'prompt_length': len(prompt),
+                'response_length': len(response) if response else 0
+            },
+            duration_seconds=duration_seconds
+        )
+        
+        return jsonify({
+            'success': True,
+            'analysis': response,
+            'prompt': prompt,
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in vision endpoint: {str(e)}")
+        
+        if isinstance(e, QuotaExceededError):
+            return jsonify({
+                'error': 'Quota exceeded',
+                'message': 'Vision analysis quota limit reached. Please try again later.',
+                'retry_after': 3600
+            }), 429
+        
+        return jsonify({
+            'error': 'Failed to analyze image',
+            'message': str(e)
+        }), 500
+
 @ai_bp.route('/analyze-image', methods=['POST'])
 @token_required
 def analyze_image():

@@ -78,18 +78,52 @@ class HealthChecker:
     def _check_database(self):
         """Check database connectivity."""
         try:
-            # For now, just check if DATABASE_URL is configured
-            database_url = os.getenv('DATABASE_URL')
-            if not database_url:
-                return {
-                    'status': 'degraded',
-                    'message': 'Database URL not configured'
-                }
+            # Check database type from environment
+            database_type = os.getenv('DATABASE_TYPE', 'postgresql').lower()
             
-            return {
-                'status': 'healthy',
-                'message': 'Database configured'
-            }
+            if database_type == 'firebase':
+                # Check Firebase configuration
+                firebase_creds_path = os.getenv('FIREBASE_CREDENTIALS_PATH')
+                project_id = os.getenv('GOOGLE_CLOUD_PROJECT') or os.getenv('PROJECT_ID')
+                
+                if not firebase_creds_path and not project_id:
+                    return {
+                        'status': 'degraded',
+                        'message': 'Firebase credentials not configured'
+                    }
+                
+                # Check if Firebase credentials file exists
+                if firebase_creds_path and not os.path.exists(firebase_creds_path):
+                    return {
+                        'status': 'degraded',
+                        'message': f'Firebase credentials file not found: {firebase_creds_path}'
+                    }
+                
+                return {
+                    'status': 'healthy',
+                    'message': 'Firebase database configured',
+                    'details': {
+                        'database_type': 'firebase',
+                        'project_id': project_id,
+                        'credentials_configured': bool(firebase_creds_path or project_id)
+                    }
+                }
+            else:
+                # Check traditional database URL
+                database_url = os.getenv('DATABASE_URL')
+                if not database_url:
+                    return {
+                        'status': 'degraded',
+                        'message': 'Database URL not configured'
+                    }
+                
+                return {
+                    'status': 'healthy',
+                    'message': 'Database configured',
+                    'details': {
+                        'database_type': database_type
+                    }
+                }
                 
         except Exception as e:
             return {
@@ -138,23 +172,61 @@ class HealthChecker:
     def _check_ai_service(self):
         """Check AI service availability."""
         try:
-            # Check if OpenAI API key is configured
-            api_key = os.getenv('OPENAI_API_KEY')
-            if not api_key:
+            # Check AI service type from environment
+            ai_service_type = os.getenv('AI_SERVICE_TYPE', 'vertex_ai').lower()
+            
+            if ai_service_type == 'vertex_ai':
+                # Check if Google Cloud Project is configured for Vertex AI
+                project_id = os.getenv('GOOGLE_CLOUD_PROJECT') or os.getenv('PROJECT_ID')
+                location = os.getenv('LOCATION', 'us-central1')
+                
+                if not project_id:
+                    return {
+                        'status': 'degraded',
+                        'message': 'Google Cloud Project not configured for Vertex AI'
+                    }
+                
+                # Check if Google Application Credentials are available
+                try:
+                    from google.auth import default
+                    credentials, _ = default()
+                    auth_configured = True
+                except Exception:
+                    auth_configured = False
+                
+                return {
+                    'status': 'healthy' if auth_configured else 'degraded',
+                    'message': 'Vertex AI service configured' if auth_configured else 'Google Cloud authentication not configured',
+                    'details': {
+                        'ai_service_type': 'vertex_ai',
+                        'project_id': project_id,
+                        'location': location,
+                        'auth_configured': auth_configured,
+                        'gemini_model': os.getenv('GEMINI_PRO_MODEL', 'gemini-1.5-pro')
+                    }
+                }
+            elif ai_service_type == 'openai':
+                # Check OpenAI configuration
+                openai_api_key = os.getenv('OPENAI_API_KEY')
+                if not openai_api_key:
+                    return {
+                        'status': 'degraded',
+                        'message': 'OpenAI API key not configured'
+                    }
+                
+                return {
+                    'status': 'healthy',
+                    'message': 'OpenAI service configured',
+                    'details': {
+                        'ai_service_type': 'openai',
+                        'api_key_configured': bool(openai_api_key)
+                    }
+                }
+            else:
                 return {
                     'status': 'degraded',
-                    'message': 'OpenAI API key not configured'
+                    'message': f'Unknown AI service type: {ai_service_type}'
                 }
-            
-            # For now, just return healthy if key is configured
-            # In production, you might want to make a test API call
-            return {
-                'status': 'healthy',
-                'message': 'AI service configured',
-                'details': {
-                    'api_key_configured': True
-                }
-            }
                 
         except Exception as e:
             return {

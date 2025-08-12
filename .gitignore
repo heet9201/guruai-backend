@@ -252,3 +252,15 @@ docs/FILE_MANAGEMENT.md
 test_accessibility_sync.py
 test_file_management.py
 test_localization_performance.py
+FLUTTER_FRONTEND_GUIDE.md
+API_ENDPOINTS_SUMMARY.md
+DEPLOYMENT_FIX_GUIDE.md
+DEPLOYMENT_STATUS_SUMMARY.md
+ISSUES_FIXED_SUMMARY.md
+scripts/build-and-deploy.sh
+scripts/complete-cloud-run-setup.sh
+scripts/comprehensive-api-test.sh
+scripts/quick-deployment-fix.sh
+scripts/quick-fix-cloud-run.sh
+scripts/setup-cloud-run-env.sh
+scripts/test-api-endpoints.sh

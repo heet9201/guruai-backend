@@ -40,14 +40,13 @@ class FirebaseAuthService:
                 self.firebase_app = firebase_admin.get_app()
                 logger.info("Using existing Firebase app")
             except ValueError:
-                # Initialize Firebase if not already done
-                firebase_creds_path = current_app.config.get('FIREBASE_CREDENTIALS_PATH')
-                if not firebase_creds_path:
-                    raise Exception("FIREBASE_CREDENTIALS_PATH not configured")
-                
-                cred = credentials.Certificate(firebase_creds_path)
-                self.firebase_app = firebase_admin.initialize_app(cred)
-                logger.info("Firebase Admin SDK initialized successfully")
+                # Initialize Firebase using Application Default Credentials
+                try:
+                    self.firebase_app = firebase_admin.initialize_app()
+                    logger.info("Firebase Admin SDK initialized with Application Default Credentials")
+                except Exception as e:
+                    logger.error(f"Failed to initialize Firebase with Application Default Credentials: {e}")
+                    raise Exception("Firebase initialization failed - ensure Application Default Credentials are configured")
             
             # Initialize Firestore
             self.db = firestore.client()
