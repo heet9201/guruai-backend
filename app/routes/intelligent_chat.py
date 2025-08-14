@@ -142,13 +142,12 @@ def get_session_history(session_id: str):
         
         logger.info(f"Getting session history for {session_id}, page {page}")
         
-        # Get history
-        import asyncio
-        messages, total = asyncio.run(chat_service.get_session_history(
+        # Get history (now synchronous)
+        messages, total = chat_service.get_session_history(
             session_id=session_id,
             page=page,
             limit=limit
-        ))
+        )
         
         return success_response(
             data={
@@ -181,12 +180,11 @@ def get_user_sessions():
         
         logger.info(f"Getting sessions for user {user_id}")
         
-        # Get sessions
-        import asyncio
-        sessions = asyncio.run(chat_service.get_user_sessions(
+        # Get sessions (now synchronous)
+        sessions = chat_service.get_user_sessions(
             user_id=user_id,
             limit=limit
-        ))
+        )
         
         return success_response(
             data={

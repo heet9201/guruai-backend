@@ -119,8 +119,9 @@ class IntelligentChatService:
                 }
             )
             
-            # Store message in memory
-            self._store_message_simple(session_id, message, user_id)
+            # Store both user message and AI response in memory
+            self._store_message_simple(session_id, message, user_id, MessageType.USER)
+            self._store_message_simple(session_id, response.content, user_id, MessageType.AI)
             
             return response
             
@@ -163,7 +164,7 @@ class IntelligentChatService:
             ]
         )
     
-    def _store_message_simple(self, session_id: str, message: str, user_id: Optional[str]):
+    def _store_message_simple(self, session_id: str, message: str, user_id: Optional[str], message_type: MessageType = MessageType.USER):
         """Store message in memory."""
         # Simple in-memory storage for now
         if session_id not in self.message_history:
@@ -172,6 +173,7 @@ class IntelligentChatService:
         self.message_history[session_id].append({
             "message": message,
             "user_id": user_id,
+            "message_type": message_type,
             "timestamp": datetime.utcnow().isoformat()
         })
     
@@ -247,25 +249,39 @@ class IntelligentChatService:
             logger.error(f"Error generating suggestions: {str(e)}")
             return []
     
-    async def get_session_history(self, 
+    def get_session_history(self, 
                                 session_id: str, 
                                 page: int = 1, 
                                 limit: int = 50) -> Tuple[List[ChatMessage], int]:
         """Get chat history for a session with pagination."""
-        if session_id not in self.messages:
+        # Use message_history instead of messages for retrieval
+        if session_id not in self.message_history:
             return [], 0
         
-        messages = self.messages[session_id]
-        total = len(messages)
+        raw_messages = self.message_history[session_id]
+        total = len(raw_messages)
         
         start_idx = (page - 1) * limit
         end_idx = start_idx + limit
         
-        paginated_messages = messages[start_idx:end_idx]
+        paginated_raw = raw_messages[start_idx:end_idx]
         
-        return paginated_messages, total
+        # Convert raw message data to ChatMessage objects
+        chat_messages = []
+        for i, raw_msg in enumerate(paginated_raw):
+            chat_message = ChatMessage(
+                id=str(uuid.uuid4()),
+                content=raw_msg["message"],
+                message_type=raw_msg.get("message_type", MessageType.USER),
+                timestamp=datetime.fromisoformat(raw_msg["timestamp"]) if isinstance(raw_msg["timestamp"], str) else raw_msg["timestamp"],
+                session_id=session_id,
+                user_id=raw_msg.get("user_id")
+            )
+            chat_messages.append(chat_message)
+        
+        return chat_messages, total
     
-    async def get_user_sessions(self, 
+    def get_user_sessions(self, 
                               user_id: str, 
                               limit: int = 20) -> List[ChatSession]:
         """Get recent sessions for a user."""
