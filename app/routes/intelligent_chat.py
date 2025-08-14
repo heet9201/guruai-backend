@@ -25,7 +25,7 @@ chat_service = IntelligentChatService()
 @token_required
 @require_json
 @validate_required_fields(['message', 'session_id'])
-async def send_intelligent_message():
+def send_intelligent_message():
     """Send an intelligent chat message."""
     try:
         data = request.get_json()
@@ -36,8 +36,8 @@ async def send_intelligent_message():
         
         logger.info(f"Intelligent chat request from user {user_id}: {message[:50]}...")
         
-        # Send intelligent message
-        response = await chat_service.send_intelligent_message(
+        # Send intelligent message (sync call since the service should handle async internally)
+        response = chat_service.send_intelligent_message(
             message=message,
             session_id=session_id,
             user_id=user_id,
@@ -77,14 +77,13 @@ def create_chat_session():
         
         logger.info(f"Creating chat session for user {user_id}, type: {session_type}")
         
-        # Create session (need to handle async properly)
-        import asyncio
-        session = asyncio.run(chat_service.create_intelligent_session(
+        # Create session
+        session = chat_service.create_intelligent_session(
             title=title,
             user_id=user_id,
             session_type=session_type_enum,
             initial_context=initial_context
-        ))
+        )
         
         return success_response(
             data=session.to_dict(),
@@ -113,12 +112,11 @@ def continue_or_create_session():
         logger.info(f"Continue/create session for user {user_id}")
         
         # Continue or create session
-        import asyncio
-        session = asyncio.run(chat_service.continue_or_create_session(
+        session = chat_service.continue_or_create_session(
             user_id=user_id,
             last_session_id=last_session_id,
             message_preview=message_preview
-        ))
+        )
         
         return success_response(
             data=session.to_dict(),
@@ -221,16 +219,18 @@ def get_personalized_suggestions():
         logger.info(f"Getting suggestions for session {session_id}")
         
         # Get suggestions
-        import asyncio
-        suggestions = asyncio.run(chat_service.get_personalized_suggestions(
+        suggestions = chat_service.get_personalized_suggestions(
             session_id=session_id,
             user_id=user_id,
             current_message=current_message
-        ))
+        )
+        
+        logger.info(f"Generated {len(suggestions)} suggestions")
         
         # Group suggestions by type
         grouped_suggestions = {}
         for suggestion in suggestions:
+            logger.info(f"Processing suggestion: {suggestion}")
             suggestion_type = suggestion.suggestion_type.value
             if suggestion_type not in grouped_suggestions:
                 grouped_suggestions[suggestion_type] = []
@@ -401,13 +401,12 @@ def batch_chat_requests():
             try:
                 if request_type == 'send_message':
                     # Handle send message
-                    import asyncio
-                    response = asyncio.run(chat_service.send_intelligent_message(
+                    response = chat_service.send_intelligent_message(
                         message=request_data['message'],
                         session_id=request_data['session_id'],
                         user_id=user_id,
                         context=request_data.get('context', {})
-                    ))
+                    )
                     results.append({
                         'type': request_type,
                         'success': True,
@@ -416,12 +415,11 @@ def batch_chat_requests():
                     
                 elif request_type == 'get_suggestions':
                     # Handle get suggestions
-                    import asyncio
-                    suggestions = asyncio.run(chat_service.get_personalized_suggestions(
+                    suggestions = chat_service.get_personalized_suggestions(
                         session_id=request_data['session_id'],
                         user_id=user_id,
                         current_message=request_data.get('context_message')
-                    ))
+                    )
                     results.append({
                         'type': request_type,
                         'success': True,
