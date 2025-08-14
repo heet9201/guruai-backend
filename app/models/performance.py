@@ -215,9 +215,9 @@ DEFAULT_RATE_LIMITS = [
         window_seconds=60
     ),
     
-    # Chat endpoints
+    # Intelligent Chat endpoints
     RateLimitRule(
-        endpoint="/api/v1/chat/send",
+        endpoint="/api/v1/chat/intelligent",
         scope=RateLimitScope.USER_ID,
         limit=60,
         window_seconds=60

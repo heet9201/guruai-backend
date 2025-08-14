@@ -139,8 +139,10 @@ POST /api/v1/auth/mfa/verify   - Verify 2FA token
 ### Chat & AI Endpoints
 
 ```
-POST /api/v1/chat/message      - Send chat message
-GET  /api/v1/chat/history      - Get chat history
+POST /api/v1/chat/intelligent  - Send intelligent chat message
+POST /api/v1/chat/sessions     - Create/manage chat sessions
+GET  /api/v1/chat/sessions     - Get user chat sessions
+POST /api/v1/chat/suggestions  - Get personalized suggestions
 POST /api/v1/content/generate  - Generate content
 GET  /api/v1/content/templates - Get content templates
 ```
@@ -471,7 +473,9 @@ The API will be available at `http://localhost:5000`
 
 ### AI Services
 
-- `POST /api/v1/chat` - AI chat conversation
+- `POST /api/v1/chat/intelligent` - Intelligent AI chat with context-awareness
+- `POST /api/v1/ai/sentiment-analysis` - Sentiment analysis
+- `POST /api/v1/ai/topic-extraction` - Topic extraction from conversations
 - `POST /api/v1/analyze-image` - Image analysis
 - `POST /api/v1/generate-summary` - Text summarization
 

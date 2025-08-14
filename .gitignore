@@ -264,3 +264,9 @@ scripts/quick-deployment-fix.sh
 scripts/quick-fix-cloud-run.sh
 scripts/setup-cloud-run-env.sh
 scripts/test-api-endpoints.sh
+POSTMAN_AUTHENTICATION_GUIDE.md
+COMPREHENSIVE_APP_DOCUMENTATION.md
+FLUTTER_API_OPTIMIZATION_GUIDE.md
+INTELLIGENT_CHAT_DOCUMENTATION.md
+INTELLIGENT_CHAT_IMPLEMENTATION_SUMMARY.md
+OLD_CHAT_ENDPOINT_CLEANUP_SUMMARY.md

@@ -86,6 +86,7 @@ def register_blueprints(app):
     from app.routes.offline_sync import sync_bp
     from app.routes.localization import localization_bp
     from app.routes.performance import performance_bp
+    from app.routes.intelligent_chat import intelligent_chat_bp
     
     app.register_blueprint(health_bp, url_prefix='/api/v1')
     app.register_blueprint(ai_bp, url_prefix='/api/v1')
@@ -101,3 +102,4 @@ def register_blueprints(app):
     app.register_blueprint(sync_bp, url_prefix='/api/v1/offline-sync')
     app.register_blueprint(localization_bp, url_prefix='/api/v1/localization')
     app.register_blueprint(performance_bp, url_prefix='/api/v1/performance')
+    app.register_blueprint(intelligent_chat_bp)  # No prefix as routes already include full path

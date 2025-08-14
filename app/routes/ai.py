@@ -13,71 +13,7 @@ ai_bp = Blueprint('ai', __name__)
 ai_service = AIService()
 dashboard_service = DashboardService()
 
-@ai_bp.route('/chat', methods=['POST'])
-@token_required
-@require_json
-@validate_required_fields(['message'])
-def chat():
-    """Handle chat requests with AI using Vertex AI Gemini Pro."""
-    start_time = time.time()
-    
-    try:
-        data = request.get_json()
-        message = data['message']
-        user_id = g.current_user.get('id')
-        context = data.get('context', {})
-        
-        # Additional parameters for Gemini Pro
-        max_tokens = data.get('max_tokens', 1000)
-        temperature = data.get('temperature', 0.7)
-        
-        logger.info(f"Chat request from user {user_id}: {message[:50]}...")
-        
-        response = ai_service.generate_response(
-            message=message,
-            user_id=user_id,
-            context=context,
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
-        
-        # Calculate duration and track activity
-        duration_seconds = int(time.time() - start_time)
-        dashboard_service.track_activity(
-            user_id=user_id,
-            activity_type=ActivityType.CHAT,
-            title="AI Chat Session",
-            description=f"Chat about: {message[:100]}...",
-            metadata={
-                'feature': 'ai_chat',
-                'message_length': len(message),
-                'response_length': len(response) if response else 0,
-                'temperature': temperature,
-                'max_tokens': max_tokens
-            },
-            duration_seconds=duration_seconds
-        )
-        
-        return jsonify({
-            'response': response,
-            'status': 'success',
-            'user_id': user_id
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in chat endpoint: {str(e)}")
-        
-        if isinstance(e, QuotaExceededError):
-            return jsonify({
-                'error': 'Quota exceeded',
-                'message': 'API quota limit reached. Please try again later.',
-                'retry_after': 3600  # 1 hour
-            }), 429
-        
-        return jsonify({
-            'error': 'Failed to generate response',
-            'message': str(e)
-        }), 500
+
 
 @ai_bp.route('/vision', methods=['POST'])
 @token_required

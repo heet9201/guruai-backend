@@ -405,8 +405,8 @@ class TestHealthAndMonitoringAPI:
         metrics_response = """
 # HELP http_requests_total Total number of HTTP requests
 # TYPE http_requests_total counter
-http_requests_total{method="GET",endpoint="/api/v1/chat"} 1234
-http_requests_total{method="POST",endpoint="/api/v1/chat/message"} 5678
+http_requests_total{method="POST",endpoint="/api/v1/chat/intelligent"} 1234
+http_requests_total{method="POST",endpoint="/api/v1/chat/sessions"} 5678
 
 # HELP response_time_seconds Response time in seconds
 # TYPE response_time_seconds histogram

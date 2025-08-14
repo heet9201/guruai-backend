@@ -124,8 +124,12 @@ class PerformanceMiddleware:
         
         # Chat endpoints
         elif '/chat/' in path:
-            if 'send' in path:
-                return '/api/v1/chat/send'
+            if 'intelligent' in path:
+                return '/api/v1/chat/intelligent'
+            elif 'sessions' in path:
+                return '/api/v1/chat/sessions/*'
+            elif 'suggestions' in path:
+                return '/api/v1/chat/suggestions'
             return '/api/v1/chat/*'
         
         # Content generation
