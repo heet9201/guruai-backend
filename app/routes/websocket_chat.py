@@ -1,10 +1,11 @@
 """
 WebSocket Chat Routes
-Real-time chat features with WebSocket support.
+Real-time chat features with WebSocket support including intelligent AI responses.
 """
 
 import logging
 import uuid
+import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -12,19 +13,22 @@ from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 
 from app.models.websocket_models import MessageType, EventType, RoomType
+from app.models.chat import ChatSessionType
 from app.services.websocket_manager import WebSocketManager
+from app.services.intelligent_chat_service import IntelligentChatService
 from app.utils.simple_websocket_auth import SimpleWebSocketAuth, require_ws_auth, require_room_permission, rate_limit_ws
 
 logger = logging.getLogger(__name__)
 
 class ChatSocketHandler:
-    """Handles WebSocket events for chat functionality."""
+    """Handles WebSocket events for chat functionality with intelligent AI responses."""
     
     def __init__(self, socketio: SocketIO, ws_manager: WebSocketManager):
         """Initialize chat socket handler."""
         self.socketio = socketio
         self.ws_manager = ws_manager
         self.ws_auth = SimpleWebSocketAuth()
+        self.intelligent_chat_service = IntelligentChatService()
         
         # Session storage for socket connections
         self.user_sessions = {}
@@ -58,7 +62,7 @@ class ChatSocketHandler:
                     return False
                 
                 # Rate limit check
-                if not self.ws_auth.rate_limit_check(user_data['user_id'], 'connection'):
+                if not self.ws_auth.check_rate_limit(user_data['user_id'], '10/minute'):
                     logger.warning(f"Rate limit exceeded for user {user_data['user_id']}")
                     emit('error', {'message': 'Rate limit exceeded', 'code': 'RATE_LIMIT'})
                     disconnect()
@@ -102,7 +106,7 @@ class ChatSocketHandler:
                 return False
         
         @self.socketio.on('disconnect', namespace='/ws/chat')
-        def handle_disconnect():
+        def handle_disconnect(reason=None):
             """Handle WebSocket disconnection."""
             try:
                 user_data = self.user_sessions.get(request.sid)
@@ -241,6 +245,204 @@ class ChatSocketHandler:
             except Exception as e:
                 logger.error(f"Send message error: {str(e)}")
                 emit('error', {'message': 'Failed to send message', 'code': 'SEND_ERROR'})
+        
+        @self.socketio.on('send_intelligent_message', namespace='/ws/chat')
+        @require_ws_auth
+        @rate_limit_ws('intelligent_message', limit=20, window=60)
+        def handle_send_intelligent_message(data, user_data=None):
+            """Handle sending an intelligent chat message with AI response."""
+            try:
+                message = data.get('message') or data.get('content', '').strip()
+                session_id = data.get('session_id')
+                context = data.get('context', {})
+                
+                if not message or not session_id:
+                    emit('error', {'message': 'Message content and session ID required', 'code': 'MISSING_DATA'})
+                    return
+                
+                # Emit acknowledgment that message was received
+                emit('message_received', {
+                    'message_id': str(uuid.uuid4()),
+                    'session_id': session_id,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'status': 'processing'
+                })
+                
+                # Emit AI typing indicator
+                emit('ai_typing_start', {
+                    'session_id': session_id,
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+                
+                try:
+                    # Generate intelligent AI response
+                    response = self.intelligent_chat_service.send_intelligent_message(
+                        message=message,
+                        session_id=session_id,
+                        user_id=user_data['user_id'],
+                        context=context
+                    )
+                    
+                    # Stop AI typing indicator
+                    emit('ai_typing_stop', {
+                        'session_id': session_id,
+                        'timestamp': datetime.utcnow().isoformat()
+                    })
+                    
+                    # Send AI response
+                    emit('intelligent_response', {
+                        'message_id': response.message_id,
+                        'session_id': session_id,
+                        'content': response.content,
+                        'suggestions': [s.to_dict() for s in response.suggestions],
+                        'related_topics': response.related_topics,
+                        'study_recommendations': response.study_recommendations,
+                        'timestamp': response.timestamp.isoformat(),
+                        'analytics': response.analytics
+                    })
+                    
+                    logger.info(f"Intelligent response sent for session {session_id}")
+                    
+                except Exception as ai_error:
+                    # Stop typing indicator on error
+                    emit('ai_typing_stop', {
+                        'session_id': session_id,
+                        'timestamp': datetime.utcnow().isoformat()
+                    })
+                    
+                    logger.error(f"AI generation error: {str(ai_error)}")
+                    emit('error', {
+                        'message': 'Failed to generate AI response',
+                        'code': 'AI_GENERATION_FAILED',
+                        'session_id': session_id
+                    })
+                
+            except Exception as e:
+                logger.error(f"Intelligent message error: {str(e)}")
+                emit('error', {'message': 'Failed to process intelligent message', 'code': 'INTELLIGENT_MESSAGE_ERROR'})
+        
+        @self.socketio.on('create_intelligent_session', namespace='/ws/chat')
+        @require_ws_auth
+        @rate_limit_ws('create_session', limit=10, window=60)
+        def handle_create_intelligent_session(data, user_data=None):
+            """Create a new intelligent chat session."""
+            try:
+                # Check if user_data is available
+                if not user_data:
+                    logger.error("User data not available for session creation")
+                    emit('error', {'message': 'Authentication required', 'code': 'AUTH_REQUIRED'})
+                    return
+                
+                # Check required user data fields
+                if not isinstance(user_data, dict) or 'user_id' not in user_data:
+                    logger.error(f"Invalid user data structure: {user_data}")
+                    emit('error', {'message': 'Invalid user authentication', 'code': 'INVALID_AUTH'})
+                    return
+                
+                # Get session parameters
+                session_type_str = data.get('session_type', 'general')
+                initial_context = data.get('initial_context', {})
+                
+                # Convert string to enum
+                try:
+                    session_type = ChatSessionType(session_type_str.lower())
+                except ValueError:
+                    session_type = ChatSessionType.GENERAL  # Default fallback
+                
+                # Create session with proper error handling using correct method name
+                session = self.intelligent_chat_service.create_intelligent_session(
+                    user_id=user_data['user_id'],
+                    session_type=session_type,
+                    initial_context=initial_context
+                )
+                
+                if not session:
+                    emit('error', {'message': 'Failed to create session', 'code': 'SESSION_CREATE_FAILED'})
+                    return
+                
+                emit('session_created', {
+                    'session_id': session.id,  # Use 'id' field from ChatSession
+                    'title': session.title,
+                    'session_type': session.session_type.value if hasattr(session.session_type, 'value') else str(session.session_type),
+                    'created_at': session.created_at.isoformat() if hasattr(session, 'created_at') else None,
+                    'message_count': session.message_count,
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+                
+                logger.info(f"Intelligent session created: {session.id} for user {user_data['user_id']}")
+                
+            except Exception as e:
+                logger.error(f"Create session error: {str(e)}")
+                emit('error', {'message': 'Failed to create session', 'code': 'SESSION_CREATE_ERROR'})
+        
+        @self.socketio.on('get_session_history', namespace='/ws/chat')
+        @require_ws_auth
+        @rate_limit_ws('get_history', limit=30, window=60)
+        def handle_get_session_history(data, user_data=None):
+            """Get chat history for a session."""
+            try:
+                session_id = data.get('session_id')
+                limit = data.get('limit', 50)
+                
+                if not session_id:
+                    emit('error', {'message': 'Session ID required', 'code': 'MISSING_SESSION_ID'})
+                    return
+                
+                # Get messages
+                messages, total = self.intelligent_chat_service.get_session_history(
+                    session_id=session_id,
+                    limit=limit
+                )
+                
+                emit('session_history', {
+                    'session_id': session_id,
+                    'messages': [msg.to_dict() for msg in messages],
+                    'total': total,
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+                
+            except Exception as e:
+                logger.error(f"Get session history error: {str(e)}")
+                emit('error', {'message': 'Failed to get session history', 'code': 'HISTORY_ERROR'})
+        
+        @self.socketio.on('get_personalized_suggestions', namespace='/ws/chat')
+        @require_ws_auth
+        @rate_limit_ws('get_suggestions', limit=20, window=60)
+        def handle_get_personalized_suggestions(data, user_data=None):
+            """Get personalized suggestions for the user."""
+            try:
+                session_id = data.get('session_id')
+                current_message = data.get('current_message')
+                
+                if not session_id:
+                    emit('error', {'message': 'Session ID required', 'code': 'MISSING_SESSION_ID'})
+                    return
+                
+                # Get suggestions
+                suggestions = self.intelligent_chat_service.get_personalized_suggestions(
+                    session_id=session_id,
+                    user_id=user_data['user_id'],
+                    current_message=current_message
+                )
+                
+                # Group suggestions by type
+                grouped_suggestions = {}
+                for suggestion in suggestions:
+                    suggestion_type = suggestion.suggestion_type.value
+                    if suggestion_type not in grouped_suggestions:
+                        grouped_suggestions[suggestion_type] = []
+                    grouped_suggestions[suggestion_type].append(suggestion.to_dict())
+                
+                emit('personalized_suggestions', {
+                    'session_id': session_id,
+                    'suggestions': grouped_suggestions,
+                    'total': len(suggestions),
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+                
+            except Exception as e:
+                logger.error(f"Get suggestions error: {str(e)}")
+                emit('error', {'message': 'Failed to get suggestions', 'code': 'SUGGESTIONS_ERROR'})
         
         @self.socketio.on('typing_start', namespace='/ws/chat')
         @require_ws_auth

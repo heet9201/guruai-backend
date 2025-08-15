@@ -86,7 +86,7 @@ class CollaborationSocketHandler:
                     return False
                 
                 # Rate limit check
-                if not self.ws_auth.rate_limit_check(user_data['user_id'], 'connection'):
+                if not self.ws_auth.check_rate_limit(user_data['user_id'], '10/minute'):
                     logger.warning(f"Rate limit exceeded for collaboration user {user_data['user_id']}")
                     emit('error', {'message': 'Rate limit exceeded', 'code': 'RATE_LIMIT'})
                     disconnect()
@@ -130,7 +130,7 @@ class CollaborationSocketHandler:
                 return False
         
         @self.socketio.on('disconnect', namespace='/ws/collaboration')
-        def handle_disconnect():
+        def handle_disconnect(reason=None):
             """Handle WebSocket disconnection."""
             try:
                 user_data = self.user_sessions.get(request.sid)

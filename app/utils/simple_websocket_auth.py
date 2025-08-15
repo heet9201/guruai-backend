@@ -174,6 +174,32 @@ class SimpleWebSocketAuth:
         except Exception as e:
             logger.error(f"Origin validation error: {str(e)}")
             return True  # Allow on error for development
+    
+    def log_connection(self, user_id: str, socket_id: str, event_type: str, extra_data: Optional[Dict[str, Any]] = None):
+        """
+        Log WebSocket connection events.
+        
+        Args:
+            user_id: User identifier
+            socket_id: Socket connection ID
+            event_type: Type of connection event (connect, disconnect, etc.)
+            extra_data: Additional data to log
+        """
+        try:
+            log_data = {
+                'user_id': user_id,
+                'socket_id': socket_id,
+                'event_type': event_type,
+                'timestamp': logger.name  # Simple timestamp placeholder
+            }
+            
+            if extra_data:
+                log_data.update(extra_data)
+            
+            logger.info(f"WebSocket {event_type}: {log_data}")
+            
+        except Exception as e:
+            logger.error(f"Connection logging error: {str(e)}")
 
 # Simplified decorators that don't depend on session
 def require_ws_auth(f):
@@ -181,8 +207,15 @@ def require_ws_auth(f):
     Note: This is a simplified version for testing.
     """
     def decorated(*args, **kwargs):
-        # For now, just pass through
+        # For testing, provide mock user data
         # In production, you'd want proper session/auth checking
+        if 'user_data' not in kwargs or kwargs['user_data'] is None:
+            kwargs['user_data'] = {
+                'user_id': 'test_user_001',
+                'username': 'TestUser',
+                'permissions': ['read', 'write'],
+                'authenticated': True
+            }
         return f(*args, **kwargs)
     return decorated
 

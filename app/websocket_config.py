@@ -59,6 +59,9 @@ class WebSocketConfig:
             ping_timeout=60,
             ping_interval=25,
             max_http_buffer_size=1e6,  # 1MB max message size
+            # Add version compatibility settings
+            always_connect=False,
+            json=None  # Use default JSON encoder
         )
         
         # Initialize WebSocket manager
@@ -99,6 +102,11 @@ class WebSocketConfig:
             """Handle global WebSocket connection (no namespace)."""
             logger.info("Global WebSocket connection attempted - redirecting to specific namespace")
             return False  # Reject connections to global namespace
+        
+        @self.socketio.on('disconnect')
+        def handle_global_disconnect(reason=None):
+            """Handle global WebSocket disconnection."""
+            logger.info(f"Global WebSocket disconnection: {reason}")
         
         @self.socketio.on('error')
         def handle_error(error_data):
